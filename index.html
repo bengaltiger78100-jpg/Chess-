@@ -1,131 +1,161 @@
-<!DOCTYPE html>
-<html>
+<!DOCTYPE html><html lang="en">
 <head>
-<title>Chess Level 4</title>
+<meta charset="UTF-8">
+<title>Chess.com Level: Final</title><script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script><style>
+body {
+  font-family: Arial;
+  background: #0b0f1a;
+  color: white;
+  text-align: center;
+}
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
+#login, #menu, #game {
+  margin-top: 40px;
+}
 
-<style>
-body { margin:0; background:#0b0f1a; color:white; font-family:Arial; }
-#login, #menu { text-align:center; margin-top:50px; }
-button { padding:10px; margin:10px; }
-#ui { position:absolute; top:10px; left:10px; }
-</style>
-</head>
+button {
+  padding: 10px 20px;
+  margin: 10px;
+  cursor: pointer;
+}
 
-<body>
+#board {
+  width: 320px;
+  margin: 20px auto;
+  display: grid;
+  grid-template-columns: repeat(8, 40px);
+}
 
-<div id="login">
-<h2>Login</h2>
-<input id="name" placeholder="Enter name">
-<button onclick="login()">Start</button>
-</div>
+.square {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  cursor: pointer;
+}
 
-<div id="menu" style="display:none">
-<h2>Menu</h2>
-<button onclick="startBot()">Play Bot</button>
-<button onclick="startOnline()">Online Multiplayer</button>
-</div>
+.white { background: #f0d9b5; }
+.black { background: #b58863; }
 
-<div id="ui" style="display:none">
-<div id="status"></div>
-</div>
+.selected {
+  outline: 3px solid red;
+}
+</style></head><body><!-- LOGIN --><div id="login">
+  <h2>Login</h2>
+  <input id="name" placeholder="Enter name">
+  <br>
+  <button onclick="login()">Start</button>
+</div><!-- MENU --><div id="menu" style="display:none;">
+  <h2>Menu</h2>
+  <button onclick="startGame()">Play Game</button>
+</div><!-- GAME --><div id="game" style="display:none;">
+  <h2>Chess Game</h2>
+  <div id="board"></div>
+  <button onclick="resetGame()">Restart</button>
+  <p id="status"></p>
+</div><script>
+let game = new Chess();
+let selected = null;
 
-<script>
-let player="";
-let socket;
-let game=new Chess();
-let history=[];
+const pieces = {
+  p:'♟', r:'♜', n:'♞', b:'♝', q:'♛', k:'♚',
+  P:'♙', R:'♖', N:'♘', B:'♗', Q:'♕', K:'♔'
+};
 
+// LOGIN
 function login(){
- player=document.getElementById("name").value;
- localStorage.setItem("player",player);
- document.getElementById("login").style.display="none";
- document.getElementById("menu").style.display="block";
+  let name = document.getElementById("name").value;
+  if(!name){ alert("Enter name"); return; }
+
+  localStorage.setItem("player", name);
+  document.getElementById("login").style.display = "none";
+  document.getElementById("menu").style.display = "block";
 }
 
-function startBot(){
- document.getElementById("menu").style.display="none";
- document.getElementById("ui").style.display="block";
- init3D();
+// START GAME
+function startGame(){
+  document.getElementById("menu").style.display = "none";
+  document.getElementById("game").style.display = "block";
+  drawBoard();
 }
 
-function startOnline(){
- socket=io();
- socket.emit("joinRoom","room1");
+// DRAW BOARD
+function drawBoard(){
+  const boardDiv = document.getElementById("board");
+  boardDiv.innerHTML = "";
 
- socket.on("state", fen=>{
-   game.load(fen);
-   drawPieces();
- });
+  let board = game.board();
 
- document.getElementById("menu").style.display="none";
- document.getElementById("ui").style.display="block";
- init3D();
-}
+  for(let r=0;r<8;r++){
+    for(let c=0;c<8;c++){
+      let sq = document.createElement("div");
+      sq.className = "square " + ((r+c)%2 ? "black" : "white");
 
-let scene,camera,renderer,pieces=[];
+      let piece = board[r][c];
+      if(piece){
+        let key = piece.color === 'w' ? piece.type.toUpperCase() : piece.type;
+        sq.textContent = pieces[key];
+      }
 
-function init3D(){
- scene=new THREE.Scene();
- camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,0.1,1000);
- camera.position.set(6,10,10);
+      let squareName = String.fromCharCode(97+c) + (8-r);
+      sq.dataset.square = squareName;
 
- renderer=new THREE.WebGLRenderer();
- renderer.setSize(innerWidth,innerHeight);
- document.body.appendChild(renderer.domElement);
+      sq.onclick = () => handleClick(sq);
 
- scene.add(new THREE.AmbientLight(0xffffff));
-
- for(let x=0;x<8;x++){
-  for(let z=0;z<8;z++){
-    let sq=new THREE.Mesh(
-      new THREE.BoxGeometry(1,0.2,1),
-      new THREE.MeshBasicMaterial({color:(x+z)%2?0x8b4513:0xffffff})
-    );
-    sq.position.set(x,0,z);
-    scene.add(sq);
-  }
- }
-
- drawPieces();
- animate();
-}
-
-function drawPieces(){
- pieces.forEach(p=>scene.remove(p));
- pieces=[];
-
- game.board().forEach((row,r)=>{
-  row.forEach((p,c)=>{
-    if(p){
-      let m=new THREE.Mesh(
-        new THREE.SphereGeometry(0.3),
-        new THREE.MeshBasicMaterial({color:p.color==='w'?0xffffff:0x000000})
-      );
-      m.position.set(c,0.5,7-r);
-      scene.add(m);
-      pieces.push(m);
+      boardDiv.appendChild(sq);
     }
-  });
- });
+  }
+
+  updateStatus();
 }
 
-function botMove(){
- let moves=game.moves();
- let move=moves[Math.floor(Math.random()*moves.length)];
- game.move(move);
- history.push(move);
- drawPieces();
+// HANDLE CLICK
+function handleClick(square){
+  let sq = square.dataset.square;
+
+  if(selected){
+    let move = game.move({
+      from: selected,
+      to: sq,
+      promotion: 'q'
+    });
+
+    if(move){
+      selected = null;
+      drawBoard();
+    } else {
+      selected = sq;
+    }
+  } else {
+    selected = sq;
+  }
 }
 
-function animate(){
- requestAnimationFrame(animate);
- renderer.render(scene,camera);
+// RESET GAME
+function resetGame(){
+  game.reset();
+  selected = null;
+  drawBoard();
 }
-</script>
 
-</body>
+// STATUS
+function updateStatus(){
+  let status = "";
+
+  if(game.in_checkmate()){
+    status = "Checkmate!";
+  } else if(game.in_draw()){
+    status = "Draw!";
+  } else {
+    status = (game.turn() === 'w' ? "White" : "Black") + " to move";
+    if(game.in_check()){
+      status += " (Check!)";
+    }
+  }
+
+  document.getElementById("status").innerText = status;
+}
+</script></body>
 </html>
