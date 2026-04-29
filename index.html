@@ -99,8 +99,7 @@ function drawBoard(){
         sq.textContent = pieces[key];
       }
 
-      let squareName = String.fromCharCode(97+c) + (8-r);
-      sq.dataset.square = squareName;
+      sq.dataset.square = String.fromCharCode(97+c) + (8-r);
 
       sq.onclick = () => handleClick(sq);
 
@@ -116,11 +115,7 @@ function handleClick(square){
   let sq = square.dataset.square;
 
   if(selected){
-    let move = game.move({
-      from: selected,
-      to: sq,
-      promotion: 'q'
-    });
+    let move = game.move({from:selected, to:sq, promotion:'q'});
 
     if(move){
       selected = null;
@@ -133,29 +128,8 @@ function handleClick(square){
   }
 }
 
-// RESET GAME
+// RESET
 function resetGame(){
   game.reset();
-  selected = null;
   drawBoard();
-}
-
-// STATUS
-function updateStatus(){
-  let status = "";
-
-  if(game.in_checkmate()){
-    status = "Checkmate!";
-  } else if(game.in_draw()){
-    status = "Draw!";
-  } else {
-    status = (game.turn() === 'w' ? "White" : "Black") + " to move";
-    if(game.in_check()){
-      status += " (Check!)";
-    }
-  }
-
-  document.getElementById("status").innerText = status;
-}
-</script></body>
-</html>
+  
