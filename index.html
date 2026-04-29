@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Chess.com Level: Final</title><script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script><style>
+<title>Simple Chess</title><script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script><style>
 body {
   font-family: Arial;
   background: #0b0f1a;
@@ -9,14 +9,8 @@ body {
   text-align: center;
 }
 
-#login, #menu, #game {
+#login, #game {
   margin-top: 40px;
-}
-
-button {
-  padding: 10px 20px;
-  margin: 10px;
-  cursor: pointer;
 }
 
 #board {
@@ -43,17 +37,13 @@ button {
   outline: 3px solid red;
 }
 </style></head><body><!-- LOGIN --><div id="login">
-  <h2>Login</h2>
-  <input id="name" placeholder="Enter name">
-  <br>
-  <button onclick="login()">Start</button>
-</div><!-- MENU --><div id="menu" style="display:none;">
-  <h2>Menu</h2>
-  <button onclick="startGame()">Play Game</button>
+  <h2>Enter Your Name</h2>
+  <input id="name" placeholder="Your name">
+  <br><br>
+  <button onclick="startGame()">Start Game</button>
 </div><!-- GAME --><div id="game" style="display:none;">
-  <h2>Chess Game</h2>
+  <h2 id="playerName"></h2>
   <div id="board"></div>
-  <button onclick="resetGame()">Restart</button>
   <p id="status"></p>
 </div><script>
 let game = new Chess();
@@ -64,20 +54,18 @@ const pieces = {
   P:'♙', R:'♖', N:'♘', B:'♗', Q:'♕', K:'♔'
 };
 
-// LOGIN
-function login(){
-  let name = document.getElementById("name").value;
-  if(!name){ alert("Enter name"); return; }
-
-  localStorage.setItem("player", name);
-  document.getElementById("login").style.display = "none";
-  document.getElementById("menu").style.display = "block";
-}
-
 // START GAME
 function startGame(){
-  document.getElementById("menu").style.display = "none";
+  let name = document.getElementById("name").value;
+  if(!name){
+    alert("Enter your name");
+    return;
+  }
+
+  document.getElementById("login").style.display = "none";
   document.getElementById("game").style.display = "block";
+  document.getElementById("playerName").innerText = "Player: " + name;
+
   drawBoard();
 }
 
@@ -99,7 +87,8 @@ function drawBoard(){
         sq.textContent = pieces[key];
       }
 
-      sq.dataset.square = String.fromCharCode(97+c) + (8-r);
+      let squareName = String.fromCharCode(97+c) + (8-r);
+      sq.dataset.square = squareName;
 
       sq.onclick = () => handleClick(sq);
 
@@ -115,7 +104,11 @@ function handleClick(square){
   let sq = square.dataset.square;
 
   if(selected){
-    let move = game.move({from:selected, to:sq, promotion:'q'});
+    let move = game.move({
+      from: selected,
+      to: sq,
+      promotion: 'q'
+    });
 
     if(move){
       selected = null;
@@ -128,8 +121,22 @@ function handleClick(square){
   }
 }
 
-// RESET
-function resetGame(){
-  game.reset();
-  drawBoard();
-  
+// STATUS
+function updateStatus(){
+  let status = "";
+
+  if(game.in_checkmate()){
+    status = "Checkmate!";
+  } else if(game.in_draw()){
+    status = "Draw!";
+  } else {
+    status = (game.turn() === 'w' ? "White" : "Black") + " to move";
+    if(game.in_check()){
+      status += " (Check!)";
+    }
+  }
+
+  document.getElementById("status").innerText = status;
+}
+</script></body>
+</html>
