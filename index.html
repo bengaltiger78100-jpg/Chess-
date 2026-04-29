@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Simple Chess</title><script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script><style>
+<title>Smart Chess</title><script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script><style>
 body {
   font-family: Arial;
   background: #0b0f1a;
@@ -10,7 +10,7 @@ body {
 }
 
 #login, #game {
-  margin-top: 40px;
+  margin-top: 30px;
 }
 
 #board {
@@ -23,51 +23,79 @@ body {
 .square {
   width: 40px;
   height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 24px;
-  cursor: pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
+  cursor:pointer;
+  transition:0.2s;
 }
 
-.white { background: #f0d9b5; }
-.black { background: #b58863; }
+.white { background:#f0d9b5; }
+.black { background:#b58863; }
+
+.highlight {
+  background: yellow !important;
+}
 
 .selected {
-  outline: 3px solid red;
+  outline:3px solid red;
 }
-</style></head><body><!-- LOGIN --><div id="login">
-  <h2>Enter Your Name</h2>
-  <input id="name" placeholder="Your name">
+
+button {
+  padding:10px;
+  margin:10px;
+}
+</style></head><body><div id="login">
+  <h2>Enter Name</h2>
+  <input id="name">
   <br><br>
-  <button onclick="startGame()">Start Game</button>
-</div><!-- GAME --><div id="game" style="display:none;">
-  <h2 id="playerName"></h2>
-  <div id="board"></div>
+  <button onclick="start()">Start</button>
+</div><div id="game" style="display:none;">
+  <h3 id="player"></h3>  <div>
+    Level:
+    <select id="level">
+      <option value="1">Level 1</option>
+      <option value="2">Level 2</option>
+      <option value="3">Level 3</option>
+      <option value="4">Level 4</option>
+    </select>
+  </div>  <div id="board"></div>
   <p id="status"></p>
 </div><script>
 let game = new Chess();
 let selected = null;
 
+// LOAD SAVED DATA
+window.onload = () => {
+  let savedName = localStorage.getItem("player");
+  if(savedName){
+    document.getElementById("login").style.display="none";
+    document.getElementById("game").style.display="block";
+    document.getElementById("player").innerText="Player: "+savedName;
+    drawBoard();
+  }
+};
+
+// START
+function start(){
+  let name = document.getElementById("name").value;
+  if(!name) return alert("Enter name");
+
+  localStorage.setItem("player", name);
+
+  document.getElementById("login").style.display="none";
+  document.getElementById("game").style.display="block";
+  document.getElementById("player").innerText="Player: "+name;
+
+  drawBoard();
+}
+
+// PIECES
 const pieces = {
   p:'♟', r:'♜', n:'♞', b:'♝', q:'♛', k:'♚',
   P:'♙', R:'♖', N:'♘', B:'♗', Q:'♕', K:'♔'
 };
-
-// START GAME
-function startGame(){
-  let name = document.getElementById("name").value;
-  if(!name){
-    alert("Enter your name");
-    return;
-  }
-
-  document.getElementById("login").style.display = "none";
-  document.getElementById("game").style.display = "block";
-  document.getElementById("playerName").innerText = "Player: " + name;
-
-  drawBoard();
-}
 
 // DRAW BOARD
 function drawBoard(){
@@ -83,14 +111,14 @@ function drawBoard(){
 
       let piece = board[r][c];
       if(piece){
-        let key = piece.color === 'w' ? piece.type.toUpperCase() : piece.type;
+        let key = piece.color==='w'?piece.type.toUpperCase():piece.type;
         sq.textContent = pieces[key];
       }
 
-      let squareName = String.fromCharCode(97+c) + (8-r);
-      sq.dataset.square = squareName;
+      let name = String.fromCharCode(97+c)+(8-r);
+      sq.dataset.square = name;
 
-      sq.onclick = () => handleClick(sq);
+      sq.onclick = () => clickSquare(sq);
 
       boardDiv.appendChild(sq);
     }
@@ -99,44 +127,85 @@ function drawBoard(){
   updateStatus();
 }
 
-// HANDLE CLICK
-function handleClick(square){
-  let sq = square.dataset.square;
+// CLICK
+function clickSquare(el){
+  let sq = el.dataset.square;
+
+  clearHighlights();
 
   if(selected){
-    let move = game.move({
-      from: selected,
-      to: sq,
-      promotion: 'q'
-    });
+    let move = game.move({from:selected,to:sq,promotion:'q'});
 
     if(move){
-      selected = null;
-      drawBoard();
-    } else {
-      selected = sq;
+      selected=null;
+      animateMove();
+      return;
     }
+  }
+
+  selected = sq;
+  highlightMoves(sq);
+}
+
+// HIGHLIGHT MOVES
+function highlightMoves(square){
+  let moves = game.moves({square:square, verbose:true});
+
+  moves.forEach(m=>{
+    let el = document.querySelector(`[data-square='${m.to}']`);
+    if(el) el.classList.add("highlight");
+  });
+}
+
+// CLEAR HIGHLIGHT
+function clearHighlights(){
+  document.querySelectorAll(".square").forEach(s=>s.classList.remove("highlight"));
+}
+
+// ANIMATION
+function animateMove(){
+  let boardDiv = document.getElementById("board");
+  boardDiv.style.opacity = 0.5;
+
+  setTimeout(()=>{
+    drawBoard();
+    boardDiv.style.opacity = 1;
+  },200);
+
+  setTimeout(botMove,300);
+}
+
+// BOT (LEVELS)
+function botMove(){
+  let level = document.getElementById("level").value;
+
+  let moves = game.moves();
+  let move;
+
+  if(level==1){
+    move = moves[Math.floor(Math.random()*moves.length)];
   } else {
-    selected = sq;
+    move = moves[0]; // simple logic for higher levels
+  }
+
+  if(move){
+    game.move(move);
+    drawBoard();
   }
 }
 
 // STATUS
 function updateStatus(){
-  let status = "";
+  let status="";
 
-  if(game.in_checkmate()){
-    status = "Checkmate!";
-  } else if(game.in_draw()){
-    status = "Draw!";
-  } else {
-    status = (game.turn() === 'w' ? "White" : "Black") + " to move";
-    if(game.in_check()){
-      status += " (Check!)";
-    }
+  if(game.in_checkmate()) status="Checkmate!";
+  else if(game.in_draw()) status="Draw!";
+  else{
+    status = (game.turn()==='w'?"White":"Black")+" turn";
+    if(game.in_check()) status+=" (Check!)";
   }
 
-  document.getElementById("status").innerText = status;
+  document.getElementById("status").innerText=status;
 }
 </script></body>
 </html>
